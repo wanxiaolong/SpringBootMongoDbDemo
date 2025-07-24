@@ -1,0 +1,51 @@
+services:
+  # (Required) mongodb主服务
+  mongodb:
+    # 使用最新版MongoDB镜像
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      # 端口映射：宿主机27017端口 -> 容器27017端口
+      - "27017:27017"
+    volumes:
+      # 持久化数据：将容器/data/db挂载到data目录
+      - ./data:/data/db
+      # 初始化脚本：可以是sh或js脚本。这些脚本会在第一次启动的时候按照字母顺序在
+      # MONGO_INITDB_DATABASE指定的DB(如果没有配置这个env，则在test这个DB)中执行
+      - ./mongo-init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      # 可选：设置MongoDB的认证信息，如果不需要可删除
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: password
+      # 初始化脚本要操作的DB，如果没有，则会创建
+      MONGO_INITDB_DATABASE: movie_db
+    # 健康检查，确保MongoDB服务已启动并可用
+    healthcheck:
+      # 在容器内执行ping命令，以报告容器的健康状态为healthy or unhealthy
+      # docker ps这个命令可以看到容器的状态
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "-u", "user", "-p", "password", "--authenticationDatabase", "admin"]
+      interval: 10s # 每10秒检查一次
+      timeout: 5s # 5秒内无响应则失败
+      retries: 5 # 失败5次后标记为不健康
+      start_period: 10s # 容器启动后等待10秒再开始健康检查
+
+  # (Optional) 一个mongodb的 UI client，更方便管理mongodb
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: always
+    # 这个容器依赖于mongodb
+    depends_on:
+      - mongodb
+    ports:
+      - 8081:8081
+    environment:
+      # mongo-express自身的认证，用于访问Mongo Express的UI
+      ME_CONFIG_BASICAUTH_USERNAME: user1
+      ME_CONFIG_BASICAUTH_PASSWORD: password1
+      # mongodb的认证。需要和mongodb配置的环境变量一致
+      ME_CONFIG_MONGODB_ADMINUSERNAME: user
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_URL: mongodb://user:password@mongodb:27017/
+      # 指定连接movie_db这个数据库
+      ME_CONFIG_DEFAULT_DB: movie_db

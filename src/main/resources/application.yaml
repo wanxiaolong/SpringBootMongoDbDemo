@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: movie_db
+      # 如果MongoDB配置了认证，需要填写
+      username: app_user
+      password: app_password
